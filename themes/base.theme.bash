@@ -13,14 +13,15 @@ SCM_THEME_TAG_PREFIX='tag:'
 SCM_THEME_DETACHED_PREFIX='detached:'
 SCM_THEME_BRANCH_TRACK_PREFIX=' → '
 SCM_THEME_BRANCH_GONE_PREFIX=' ⇢ '
+SCM_THEME_CURRENT_USER_PREFFIX=' ☺︎ '
+SCM_THEME_CURRENT_USER_SUFFIX=''
 
-CLOCK_CHAR='☆'
-THEME_CLOCK_CHECK=${THEME_CLOCK_CHECK:=true}
 THEME_BATTERY_PERCENTAGE_CHECK=${THEME_BATTERY_PERCENTAGE_CHECK:=true}
 
 SCM_GIT_SHOW_DETAILS=${SCM_GIT_SHOW_DETAILS:=true}
 SCM_GIT_SHOW_REMOTE_INFO=${SCM_GIT_SHOW_REMOTE_INFO:=auto}
 SCM_GIT_IGNORE_UNTRACKED=${SCM_GIT_IGNORE_UNTRACKED:=false}
+SCM_GIT_SHOW_CURRENT_USER=${SCM_GIT_SHOW_CURRENT_USER:=false}
 
 SCM_GIT='git'
 SCM_GIT_CHAR='±'
@@ -83,13 +84,13 @@ function scm_prompt_vars {
 }
 
 function scm_prompt_info {
-  scm
-  scm_prompt_char
-  SCM_DIRTY=0
-  SCM_STATE=''
-  [[ $SCM == $SCM_GIT ]] && git_prompt_info && return
-  [[ $SCM == $SCM_HG ]] && hg_prompt_info && return
-  [[ $SCM == $SCM_SVN ]] && svn_prompt_info && return
+  scm_prompt_vars
+  if [ $SCM == $SCM_HG ]; then
+    echo -e "$SCM_PREFIX$SCM_BRANCH:${SCM_CHANGE#*:}$SCM_STATE$SCM_SUFFIX"
+  else
+    echo -e "$SCM_PREFIX$SCM_BRANCH$SCM_STATE$SCM_SUFFIX"
+  fi
+  return
 }
 
 function git_status_summary {
@@ -143,6 +144,8 @@ function git_prompt_vars {
       SCM_STATE=${GIT_THEME_PROMPT_DIRTY:-$SCM_THEME_PROMPT_DIRTY}
     fi
   fi
+
+  [[ "${SCM_GIT_SHOW_CURRENT_USER}" == "true" ]] && details+="$(git_user_info)"
 
   SCM_CHANGE=$(git rev-parse --short HEAD 2>/dev/null)
 
@@ -251,16 +254,16 @@ function hg_prompt_vars {
 
     HG_ROOT=$(get_hg_root)
 
-    if [ -f $HG_ROOT/branch ]; then
+    if [ -f "$HG_ROOT/branch" ]; then
         # Mercurial holds it's current branch in .hg/branch file
-        SCM_BRANCH=$(cat $HG_ROOT/branch)
+        SCM_BRANCH=$(cat "$HG_ROOT/branch")
     else
         SCM_BRANCH=$(hg summary 2> /dev/null | grep branch: | awk '{print $2}')
     fi
 
-    if [ -f $HG_ROOT/dirstate ]; then
+    if [ -f "$HG_ROOT/dirstate" ]; then
         # Mercurial holds various information about the working directory in .hg/dirstate file. More on http://mercurial.selenic.com/wiki/DirState
-        SCM_CHANGE=$(hexdump -n 10 -e '1/1 "%02x"' $HG_ROOT/dirstate | cut -c-12)
+        SCM_CHANGE=$(hexdump -n 10 -e '1/1 "%02x"' "$HG_ROOT/dirstate" | cut -c-12)
     else
         SCM_CHANGE=$(hg summary 2> /dev/null | grep parent: | awk '{print $2}')
     fi
@@ -332,6 +335,35 @@ function python_version_prompt {
   echo -e "$(virtualenv_prompt)$(condaenv_prompt)$(py_interp_prompt)"
 }
 
+function git_user_info {
+  # support two or more initials, set by 'git pair' plugin
+  SCM_CURRENT_USER=$(git config user.initials | sed 's% %+%')
+  # if `user.initials` weren't set, attempt to extract initials from `user.name`
+  [[ -z "${SCM_CURRENT_USER}" ]] && SCM_CURRENT_USER=$(printf "%s" $(for word in $(git config user.name | tr 'A-Z' 'a-z'); do printf "%1.1s" $word; done))
+  [[ -n "${SCM_CURRENT_USER}" ]] && printf "%s" "$SCM_THEME_CURRENT_USER_PREFFIX$SCM_CURRENT_USER$SCM_THEME_CURRENT_USER_SUFFIX"
+}
+
+function clock_char {
+  CLOCK_CHAR=${THEME_CLOCK_CHAR:-"⌚"}
+  CLOCK_CHAR_COLOR=${THEME_CLOCK_CHAR_COLOR:-"$normal"}
+  SHOW_CLOCK_CHAR=${THEME_SHOW_CLOCK_CHAR:-"true"}
+
+  if [[ "${SHOW_CLOCK_CHAR}" = "true" ]]; then
+    echo -e "${CLOCK_CHAR_COLOR}${CLOCK_CHAR}"
+  fi
+}
+
+function clock_prompt {
+  CLOCK_COLOR=${THEME_CLOCK_COLOR:-"$normal"}
+  CLOCK_FORMAT=${THEME_CLOCK_FORMAT:-"%H:%M:%S"}
+  [ -z $THEME_SHOW_CLOCK ] && THEME_SHOW_CLOCK=${THEME_CLOCK_CHECK:-"true"}
+  SHOW_CLOCK=$THEME_SHOW_CLOCK
+
+  if [[ "${SHOW_CLOCK}" = "true" ]]; then
+    CLOCK_STRING=$(date +"${CLOCK_FORMAT}")
+    echo -e "${CLOCK_COLOR}${CLOCK_STRING}"
+  fi
+}
 
 # backwards-compatibility
 function git_prompt_info {
@@ -356,13 +388,6 @@ function scm_char {
 
 function prompt_char {
     scm_char
-}
-
-function clock_char {
-    if [[ "${THEME_CLOCK_CHECK}" = true ]]; then
-        DATE_STRING=$(date +"%Y-%m-%d %H:%M:%S")
-        echo -e "${bold_cyan}$DATE_STRING ${red}$CLOCK_CHAR"
-    fi
 }
 
 function battery_char {
@@ -390,4 +415,14 @@ function aws_profile {
   else
     echo -e "default"
   fi
+}
+
+function safe_append_prompt_command {
+    if [[ -n $1 ]] ; then
+        case $PROMPT_COMMAND in
+            *$1*) ;;
+            "") PROMPT_COMMAND="$1";;
+            *) PROMPT_COMMAND="$1;$PROMPT_COMMAND";;
+        esac
+    fi
 }

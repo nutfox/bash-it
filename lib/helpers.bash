@@ -1,17 +1,16 @@
 # Helper function loading various enable-able files
 function _load_bash_it_files() {
   subdirectory="$1"
-  if [ ! -d "${BASH_IT}/${subdirectory}/enabled" ]
+  if [ -d "${BASH_IT}/${subdirectory}/enabled" ]
   then
-    continue
+    FILES="${BASH_IT}/${subdirectory}/enabled/*.bash"
+    for config_file in $FILES
+    do
+      if [ -e "${config_file}" ]; then
+        source $config_file
+      fi
+    done
   fi
-  FILES="${BASH_IT}/${subdirectory}/enabled/*.bash"
-  for config_file in $FILES
-  do
-    if [ -e "${config_file}" ]; then
-      source $config_file
-    fi
-  done
 }
 
 # Function for reloading aliases
@@ -32,14 +31,15 @@ function reload_plugins() {
 bash-it ()
 {
     about 'Bash-it help and maintenance'
-    param '1: verb [one of: help | show | enable | disable | update ] '
-    param '2: component type [one of: alias(es) | completion(s) | plugin(s) ]'
+    param '1: verb [one of: help | show | enable | disable | update | search ] '
+    param '2: component type [one of: alias(es) | completion(s) | plugin(s) ] or search term(s)'
     param '3: specific component [optional]'
     example '$ bash-it show plugins'
     example '$ bash-it help aliases'
     example '$ bash-it enable plugin git [tmux]...'
     example '$ bash-it disable alias hg [tmux]...'
     example '$ bash-it update'
+    example '$ bash-it search ruby [[-]rake]... [--enable | --disable]'
     typeset verb=${1:-}
     shift
     typeset component=${1:-}
@@ -54,6 +54,9 @@ bash-it ()
              func=_disable-$component;;
          help)
              func=_help-$component;;
+         search)
+             _bash-it-search $component $*
+             return;;
          update)
              func=_bash-it_update;;
          *)
@@ -123,8 +126,11 @@ _bash-it_update() {
   _group 'lib'
 
   cd "${BASH_IT}"
+  if [ -z $BASH_IT_REMOTE ]; then
+    BASH_IT_REMOTE="origin"
+  fi
   git fetch &> /dev/null
-  local status="$(git rev-list master..origin/master 2> /dev/null)"
+  local status="$(git rev-list master..${BASH_IT_REMOTE}/master 2> /dev/null)"
   if [[ -n "${status}" ]]; then
     git pull --rebase &> /dev/null
     if [[ $? -eq 0 ]]; then
@@ -236,6 +242,10 @@ _disable-thing ()
         rm $BASH_IT/$subdirectory/enabled/$(basename $plugin)
     fi
 
+    if [ -n "$BASH_IT_AUTOMATIC_RELOAD_AFTER_CONFIG_CHANGE" ]; then
+        exec ${0/-/}
+    fi
+
     printf '%s\n' "$file_entity disabled."
 }
 
@@ -314,6 +324,10 @@ _enable-thing ()
         ln -s ../available/$plugin $BASH_IT/$subdirectory/enabled/$plugin
     fi
 
+    if [ -n "$BASH_IT_AUTOMATIC_RELOAD_AFTER_CONFIG_CHANGE" ]; then
+        exec ${0/-/}
+    fi
+
     printf '%s\n' "$file_entity enabled."
 }
 
@@ -333,17 +347,31 @@ _help-aliases()
     _example '$ alias-help git'
 
     if [ -n "$1" ]; then
-        cat $BASH_IT/aliases/available/$1.aliases.bash | metafor alias | sed "s/$/'/"
+        case $1 in
+            custom)
+                alias_path='custom.aliases.bash'
+            ;;
+            *)
+                alias_path="available/$1.aliases.bash"
+            ;;
+        esac
+        cat $BASH_IT/aliases/$alias_path | metafor alias | sed "s/$/'/"
     else
         typeset f
         for f in $BASH_IT/aliases/enabled/*
         do
-            typeset file=$(basename $f)
-            printf '\n\n%s:\n' "${file%%.*}"
-            # metafor() strips trailing quotes, restore them with sed..
-            cat $f | metafor alias | sed "s/$/'/"
+            _help-list-aliases $f
         done
+        _help-list-aliases $BASH_IT/aliases/custom.aliases.bash
     fi
+}
+
+_help-list-aliases ()
+{
+    typeset file=$(basename $1)
+    printf '\n\n%s:\n' "${file%%.*}"
+    # metafor() strips trailing quotes, restore them with sed..
+    cat $1 | metafor alias | sed "s/$/'/"
 }
 
 _help-plugins()
@@ -405,7 +433,7 @@ if ! type pathmunge > /dev/null 2>&1
 then
   function pathmunge () {
     about 'prevent duplicate directories in you PATH variable'
-    group 'lib helpers'
+    group 'helpers'
     example 'pathmunge /path/to/dir is equivalent to PATH=/path/to/dir:$PATH'
     example 'pathmunge /path/to/dir after is equivalent to PATH=$PATH:/path/to/dir'
 
