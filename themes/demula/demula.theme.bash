@@ -1,4 +1,4 @@
-#!/usr/bin/env bash 
+#!/usr/bin/env bash
 
 # Theme inspired on:
 #  - Ronacher's dotfiles (mitsuhikos) - http://github.com/mitsuhiko/dotfiles/tree/master/bash/
@@ -10,7 +10,7 @@
 # Screenshot: http://goo.gl/VCmX5
 # by Jesus de Mula <jesus@demula.name>
 
-# For the real Monokai colors you should add these to your .XDefaults or 
+# For the real Monokai colors you should add these to your .XDefaults or
 # terminal configuration:
 #! ----------------------------------------------------------- TERMINAL COLORS
 #! monokai - http://www.monokai.nl/blog/2006/07/15/textmate-color-theme/
@@ -68,7 +68,7 @@ mitsuhikos_lastcommandfailed() {
   if [ $code != 0 ];
   then
     echo "${D_INTERMEDIATE_COLOR}exited ${D_CMDFAIL_COLOR}\
-$code ${D_DEFAULT_COLOR}" 
+$code ${D_DEFAULT_COLOR}"
   fi
 }
 
@@ -78,13 +78,13 @@ demula_vcprompt() {
   then
     local D_VCPROMPT_FORMAT="on ${D_SCM_COLOR}%s${D_INTERMEDIATE_COLOR}:\
 ${D_BRANCH_COLOR}%b %r ${D_CHANGES_COLOR}%m%u ${D_DEFAULT_COLOR}"
-    $VCPROMPT_EXECUTABLE -f "$D_VCPROMPT_FORMAT"	
+    $VCPROMPT_EXECUTABLE -f "$D_VCPROMPT_FORMAT"
   fi
 }
 
 # checks if the plugin is installed before calling battery_charge
 safe_battery_charge() {
-  if [ -e "${BASH_IT}/plugins/enabled/battery.plugin.bash" ];
+  if _command_exists battery_charge ;
   then
     battery_charge
   fi
@@ -100,8 +100,7 @@ prompt() {
 
   if [ $(uname) = "Linux" ];
   then
-    PS1="${TITLEBAR}
-${SAVE_CURSOR}${MOVE_CURSOR_RIGHTMOST}${MOVE_CURSOR_5_LEFT}\
+    PS1="${TITLEBAR}${SAVE_CURSOR}${MOVE_CURSOR_RIGHTMOST}${MOVE_CURSOR_5_LEFT}
 $(safe_battery_charge)${RESTORE_CURSOR}\
 ${D_USER_COLOR}\u ${D_INTERMEDIATE_COLOR}\
 at ${D_MACHINE_COLOR}\h ${D_INTERMEDIATE_COLOR}\
@@ -113,7 +112,7 @@ ${D_INTERMEDIATE_COLOR}$ ${D_DEFAULT_COLOR}"
   else
     PS1="${TITLEBAR}
 ${D_USER_COLOR}\u ${D_INTERMEDIATE_COLOR}\
-at ${D_MACHINE_COLOR}\h ${D_INTERMEDIATE_COLOR}\
+at ${D_MACHINE_COLOR}\h  ${D_INTERMEDIATE_COLOR}\
 in ${D_DIR_COLOR}\w ${D_INTERMEDIATE_COLOR}\
 ${LAST_COMMAND_FAILED}\
 $(demula_vcprompt)\
@@ -127,4 +126,3 @@ ${D_INTERMEDIATE_COLOR}$ ${D_DEFAULT_COLOR}"
 
 # Runs prompt (this bypasses bash_it $PROMPT setting)
 safe_append_prompt_command prompt
-

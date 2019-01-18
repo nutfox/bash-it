@@ -14,7 +14,7 @@ alias textedit='open -a TextEdit'
 alias hex='open -a "Hex Fiend"'
 alias skype='open -a Skype'
 alias mou='open -a Mou'
-alias subl='open -a Sublime\ Text --args'
+alias subl='open -a Sublime\ Text'
 
 if [ -s /usr/bin/firefox ] ; then
   unalias firefox
@@ -52,6 +52,9 @@ alias ql='qlmanage -p 2>/dev/null'
 # Mute/Unmute the system volume. Plays nice with all other volume settings.
 alias mute="osascript -e 'set volume output muted true'"
 alias unmute="osascript -e 'set volume output muted false'"
+
+# Open `nettop` monitoring TCP connections, in collapsed mode
+alias nt="nettop -m tcp -P"
 
 # Pin to the tail of long commands for an audible alert after long processes
 ## curl http://downloads.com/hugefile.zip; lmk
